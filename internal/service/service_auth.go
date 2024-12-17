@@ -1,6 +1,7 @@
 package service
 
 import (
+	"awesomeProject/internal/entites"
 	"awesomeProject/internal/logger"
 	"awesomeProject/internal/store"
 	"context"
@@ -15,37 +16,30 @@ import (
 )
 
 type AuthService struct {
-	jwtSecret string
-	store     store.Auth
+	jwtSecret     string
+	store         store.Auth
+	refreshSecret string
 }
 
-func NewAuthService(store store.Auth, jwtSecret string) *AuthService {
+func NewAuthService(store store.Auth, jwtSecret, refreshSecret string) *AuthService {
 	return &AuthService{
-		store:     store,
-		jwtSecret: jwtSecret,
+		store:         store,
+		jwtSecret:     jwtSecret,
+		refreshSecret: refreshSecret,
 	}
 }
 
 func (s *AuthService) GenerateTokens(ctx context.Context, userId string, clientIp string) (string, string, error) {
+
 	log := logger.LoggerFromContext(ctx)
-	user, err := s.store.GetUserById(ctx, userId)
+	userOld, err := s.store.GetUserById(ctx, userId)
 	if err != nil {
-		log.Errorw("error with getting user by id", zap.Error(err))
 		return "", "", err
 	}
-
-	if user == nil {
-		log.Errorw("there is no user with this id", zap.Error(err))
-		return "", "", err
+	if userOld == nil {
+		return "", "", errors.New("no refresh token found")
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.MapClaims{
-		"user_id":    userId,
-		"client_ip":  clientIp,
-		"issued_at":  time.Now().Unix(),
-		"expires_at": time.Now().Add(15 * time.Minute).Unix(), //todo из конфига
-	})
-
-	jwtToken, err := token.SignedString([]byte(s.jwtSecret))
+	jwtToken, err := s.GenerateAccessToken(ctx, userId, clientIp)
 	if err != nil {
 		log.Errorw("error with generating jwt token", zap.Error(err))
 		return "", "", err
@@ -64,7 +58,15 @@ func (s *AuthService) GenerateTokens(ctx context.Context, userId string, clientI
 		return "", "", err
 	}
 
-	if err := s.store.InsertUserInfo(ctx, userId, clientIp, string(hash)); err != nil {
+	user := &entites.User{
+		ID:           userId,
+		UpdatedAt:    time.Now(),
+		Email:        userOld.Email,
+		RefreshToken: string(hash),
+		ClientIp:     clientIp,
+	}
+
+	if err := s.store.InsertUserInfo(ctx, userOld, user); err != nil {
 		log.Errorw("error with inserting user info", zap.Error(err))
 		return "", "", err
 	}
@@ -107,30 +109,64 @@ func (as *AuthService) Refresh(ctx context.Context, userID string, providedRefre
 	}
 
 	// Проверяем хэш //todo тут хэш разный для рефреша и jwt
-	err = bcrypt.CompareHashAndPassword([]byte(rt.Hash), []byte(providedRefreshToken))
+	err = bcrypt.CompareHashAndPassword([]byte(rt.RefreshToken), []byte(providedRefreshToken))
 	if err != nil {
 		return "", errors.New("invalid refresh token")
 	}
 
 	// Проверяем срок действия
-	if time.Now().After(rt.) { //todo тут нужно получать рефреш для конкретного пользователя
+	if time.Now().After(rt.UpdatedAt) { //todo тут нужно получать рефреш для конкретного пользователя
 		return "", errors.New("refresh token expired")
 	}
 
 	// Проверяем IP (если нужно). Если IP изменился — высылаем предупреждение (опционально)
-	if rt.ClientIP != newClientIP {
+	if rt.ClientIp != newClientIP {
 		user, _ := as.store.GetUserById(ctx, userID)
 		if user != nil {
-			as.EmailService.SendWarning(user.Email, rt.ClientIP, newClientIP)
+			as.SendWarning(ctx, user, newClientIP)
 		}
 	}
 
 	// Генерируем новый Access Token
-	newAccess, err = security.GenerateAccessToken(userID, newClientIP)
+	newAccess, err = as.GenerateAccessToken(ctx, userID, newClientIP)
 	if err != nil {
 		return "", err
 	}
 
 	// Refresh token остается тем же
 	return newAccess, nil
+}
+
+func (as *AuthService) GenerateAccessToken(ctx context.Context, userId string, clientIp string) (string, error) {
+	log := logger.LoggerFromContext(ctx)
+	user, err := as.store.GetUserById(ctx, userId)
+	if err != nil {
+		log.Errorw("error with getting user by id", zap.Error(err))
+		return "", err
+	}
+
+	if user == nil {
+		log.Errorw("there is no user with this id", zap.Error(err))
+		return "", err
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.MapClaims{
+		"user_id":    userId,
+		"client_ip":  clientIp,
+		"issued_at":  time.Now().Unix(),
+		"expires_at": time.Now().Add(15 * time.Minute).Unix(), //todo из конфига
+	})
+
+	jwtToken, err := token.SignedString([]byte(as.jwtSecret))
+	if err != nil {
+		log.Errorw("error with generating jwt token", zap.Error(err))
+		return "", err
+	}
+
+	return jwtToken, nil
+}
+
+func (as *AuthService) SendWarning(ctx context.Context, user *entites.User, newIp string) {
+	log := logger.LoggerFromContext(ctx)
+	log.Infow("new clientIp entered your token", zap.String("newIp", newIp))
+	// тут заглушка отправки mail
 }

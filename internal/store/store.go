@@ -24,7 +24,7 @@ func InitDB(ctx context.Context, connString string) (*Store, error) {
 		return nil, err
 	}
 
-	if err := db.AutoMigrate(&entites.User{}, &entites.RefreshToken{}); err != nil {
+	if err := db.AutoMigrate(&entites.User{}); err != nil {
 		log.Errorw("error with migrating database scheme", zap.Error(err))
 		return nil, err
 	}
@@ -38,5 +38,5 @@ func InitDB(ctx context.Context, connString string) (*Store, error) {
 
 type Auth interface {
 	GetUserById(ctx context.Context, userId string) (*entites.User, error)
-	InsertUserInfo(ctx context.Context, userId string, clientIp string, token string) error
+	InsertUserInfo(ctx context.Context, user *entites.User, userOld *entites.User) error
 }

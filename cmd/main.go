@@ -24,7 +24,7 @@ func main() {
 		return
 	}
 
-	serviceLevel := service.NewService(storeLevel, cfg.JwtKet)
+	serviceLevel := service.NewService(storeLevel, cfg.JwtKet, cfg.RefreshKey)
 	handlerLevel := handler.NewHandler(serviceLevel)
 
 	//todo graceful shutdown

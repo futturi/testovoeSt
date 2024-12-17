@@ -9,9 +9,9 @@ type Service struct {
 	Auth
 }
 
-func NewService(store *store.Store, jwtSecret string) *Service {
+func NewService(store *store.Store, jwtSecret, refreshSecret string) *Service {
 	return &Service{
-		Auth: NewAuthService(store.Auth, jwtSecret),
+		Auth: NewAuthService(store.Auth, jwtSecret, refreshSecret),
 	}
 }
 
