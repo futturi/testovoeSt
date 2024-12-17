@@ -12,7 +12,7 @@ import (
 )
 
 type Store struct {
-	db *gorm.DB
+	Auth
 }
 
 func InitDB(ctx context.Context, connString string) (*Store, error) {
@@ -24,7 +24,7 @@ func InitDB(ctx context.Context, connString string) (*Store, error) {
 		return nil, err
 	}
 
-	if err := db.AutoMigrate(&entites.User{}); err != nil {
+	if err := db.AutoMigrate(&entites.User{}, &entites.RefreshToken{}); err != nil {
 		log.Errorw("error with migrating database scheme", zap.Error(err))
 		return nil, err
 	}
@@ -32,6 +32,11 @@ func InitDB(ctx context.Context, connString string) (*Store, error) {
 	log.Debug("database is connected")
 
 	return &Store{
-		db: db,
+		Auth: NewAuthStore(db),
 	}, nil
+}
+
+type Auth interface {
+	GetUserById(ctx context.Context, userId string) (*entites.User, error)
+	InsertUserInfo(ctx context.Context, userId string, clientIp string, token string) error
 }

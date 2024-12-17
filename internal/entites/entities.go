@@ -1,13 +1,21 @@
 package entites
 
 import (
-	"github.com/google/uuid"
 	"time"
 )
 
 type User struct {
-	ID           uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	CreatedAt    time.Time `gorm:"autoCreateTime"`
-	Email        string    `gorm:"unique;not null"`
-	RefreshToken string    `gorm:"not null"`
+	ID        string `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Email     string `gorm:"type:varchar(255);uniqueIndex"`
+}
+
+type RefreshToken struct {
+	ID       uint   `gorm:"primaryKey"`
+	UserID   string `gorm:"type:uuid;index"`
+	Hash     string `gorm:"type:text"`
+	IssuedAt time.Time
+	ClientIp string `gorm:"type:varchar(255)"`
+	Used     bool
 }

@@ -4,8 +4,9 @@ import (
 	"awesomeProject/internal/logger"
 	"awesomeProject/internal/service"
 	"context"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
@@ -25,9 +26,7 @@ func (h *Handler) InitRoutes(ctx context.Context) http.Handler {
 	{
 		auth := api.Group("/auth")
 		{
-			auth.POST("/signin", func(c *gin.Context) {
-
-			})
+			auth.POST("token", h.GetTokens)
 		}
 	}
 

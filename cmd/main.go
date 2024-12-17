@@ -8,6 +8,7 @@ import (
 	"awesomeProject/internal/service"
 	"awesomeProject/internal/store"
 	"context"
+
 	"go.uber.org/zap"
 )
 
@@ -23,7 +24,7 @@ func main() {
 		return
 	}
 
-	serviceLevel := service.NewService(storeLevel)
+	serviceLevel := service.NewService(storeLevel, cfg.JwtKet)
 	handlerLevel := handler.NewHandler(serviceLevel)
 
 	//todo graceful shutdown
