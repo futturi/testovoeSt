@@ -12,6 +12,15 @@ import (
 	"go.uber.org/zap"
 )
 
+// @title Auth API
+// @description API 4 Auth Testing
+
+// @host localhost:8080
+// @BasePath /
+
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
 func main() {
 	ctx := context.Background()
 	log := logger.InitLogger()
@@ -25,10 +34,10 @@ func main() {
 	}
 
 	serviceLevel := service.NewService(storeLevel, cfg.JwtKet, cfg.RefreshKey)
-	handlerLevel := handler.NewHandler(serviceLevel)
+	handlerLevel := handler.NewHandler(serviceLevel, cfg.JwtKet)
 
 	//todo graceful shutdown
-	if err := server.InitServer("8081", handlerLevel.InitRoutes(ctx)); err != nil {
+	if err := server.InitServer("8080", handlerLevel.InitRoutes(ctx)); err != nil {
 		log.Errorw("error with initing server", zap.Error(err))
 		return
 	}

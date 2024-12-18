@@ -22,7 +22,8 @@ func InitConfig(ctx context.Context) *Config {
 
 	if err != nil {
 		log.Errorw("Error reading config", zap.Error(err))
-		return nil
+		_ = cleanenv.ReadEnv(&cfg)
+		return &cfg
 	}
 
 	return &cfg

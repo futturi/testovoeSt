@@ -30,31 +30,36 @@ func NewAuthService(store store.Auth, jwtSecret, refreshSecret string) *AuthServ
 }
 
 func (s *AuthService) GenerateTokens(ctx context.Context, userId string, clientIp string) (string, string, error) {
-
 	log := logger.LoggerFromContext(ctx)
+
 	userOld, err := s.store.GetUserById(ctx, userId)
 	if err != nil {
+		log.Errorw("error with getting user by id", zap.Error(err))
 		return "", "", err
 	}
+
 	if userOld == nil {
-		return "", "", errors.New("no refresh token found")
+		err := errors.New("no refresh token found")
+		log.Errorw("user not found", zap.Error(err))
+		return "", "", err
 	}
+
 	jwtToken, err := s.GenerateAccessToken(ctx, userId, clientIp)
 	if err != nil {
 		log.Errorw("error with generating jwt token", zap.Error(err))
 		return "", "", err
 	}
+
 	rawRefresh := make([]byte, 32)
 	_, err = rand.Read(rawRefresh)
 	if err != nil {
 		log.Errorw("error with generating refresh token", zap.Error(err))
 		return "", "", err
 	}
-
 	refreshToken := base64.StdEncoding.EncodeToString(rawRefresh)
 	hash, err := bcrypt.GenerateFromPassword([]byte(refreshToken), bcrypt.DefaultCost)
 	if err != nil {
-		log.Errorw("error with generating refresh token", zap.Error(err))
+		log.Errorw("error with hashing refresh token", zap.Error(err))
 		return "", "", err
 	}
 
@@ -79,7 +84,7 @@ func (s *AuthService) ExtractUserIDFromAccessToken(ctx context.Context, accessTo
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid
 		}
-		return s.jwtSecret, nil
+		return []byte(s.jwtSecret), nil
 	})
 
 	if err != nil || !token.Valid {
@@ -100,40 +105,36 @@ func (s *AuthService) ExtractUserIDFromAccessToken(ctx context.Context, accessTo
 }
 
 func (as *AuthService) Refresh(ctx context.Context, userID string, providedRefreshToken string, newClientIP string) (newAccess string, err error) {
-	rt, err := as.store.GetUserById(ctx, userID)
+	user, err := as.store.GetUserById(ctx, userID)
 	if err != nil {
 		return "", err
 	}
-	if rt == nil {
+	if user == nil {
 		return "", errors.New("no refresh token found")
 	}
-
-	// Проверяем хэш //todo тут хэш разный для рефреша и jwt
-	err = bcrypt.CompareHashAndPassword([]byte(rt.RefreshToken), []byte(providedRefreshToken))
+	if user.RefreshToken != providedRefreshToken {
+		return "", errors.New("incorrect refreshToken provided")
+	}
 	if err != nil {
-		return "", errors.New("invalid refresh token")
+		return "", err
 	}
 
-	// Проверяем срок действия
-	if time.Now().After(rt.UpdatedAt) { //todo тут нужно получать рефреш для конкретного пользователя
+	if time.Now().After(user.UpdatedAt) {
 		return "", errors.New("refresh token expired")
 	}
 
-	// Проверяем IP (если нужно). Если IP изменился — высылаем предупреждение (опционально)
-	if rt.ClientIp != newClientIP {
+	if user.ClientIp != newClientIP {
 		user, _ := as.store.GetUserById(ctx, userID)
 		if user != nil {
 			as.SendWarning(ctx, user, newClientIP)
 		}
 	}
 
-	// Генерируем новый Access Token
 	newAccess, err = as.GenerateAccessToken(ctx, userID, newClientIP)
 	if err != nil {
 		return "", err
 	}
 
-	// Refresh token остается тем же
 	return newAccess, nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"awesomeProject/internal/entites"
 	"awesomeProject/internal/logger"
 	"context"
+	"time"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -21,13 +22,9 @@ func NewAuthStore(db *gorm.DB) *AuthStore {
 
 func (r *AuthStore) InsertUserInfo(ctx context.Context, user, userOld *entites.User) error {
 	log := logger.LoggerFromContext(ctx)
-
-	tx := r.DB.Model(userOld).Updates(user)
-
-	if tx.Error != nil {
-		log.Errorw("error with inserting refresh token", zap.Error(tx.Error))
-		tx.Rollback()
-		return tx.Error
+	if err := r.DB.Model(user).Update("refresh_token", userOld.RefreshToken).Update("updated_at", time.Now().Add(24*time.Hour)).Error; err != nil {
+		log.Errorw("error with inserting refresh token", zap.Error(err))
+		return err
 	}
 
 	return nil

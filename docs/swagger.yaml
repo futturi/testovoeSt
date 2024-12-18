@@ -1,0 +1,94 @@
+basePath: /
+definitions:
+  entites.Error:
+    properties:
+      error:
+        type: string
+    type: object
+  entites.RefreshRequest:
+    properties:
+      refresh_token:
+        type: string
+    type: object
+  entites.Response:
+    properties:
+      accessToken:
+        type: string
+      refreshToken:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API 4 Auth Testing
+  title: Auth API
+paths:
+  /api/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: refreshTokens
+      operationId: refreshTokens
+      parameters:
+      - description: refreshToken
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/entites.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entites.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/entites.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/entites.Error'
+      security:
+      - ApiKeyAuth: []
+      summary: RefreshToken
+      tags:
+      - auth
+  /api/auth/token:
+    post:
+      consumes:
+      - application/json
+      description: gettokens
+      operationId: gettokens
+      parameters:
+      - description: userId
+        in: query
+        name: userId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entites.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/entites.Error'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/entites.Error'
+      summary: GetTokens
+      tags:
+      - auth
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

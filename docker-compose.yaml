@@ -7,3 +7,15 @@ services:
       POSTGRES_PASSWORD: 12345
     ports:
       - "5432:5432"
+  auth:
+    ports:
+      - 8080:8080
+    build: ./
+    depends_on:
+      - db
+    environment:
+      - JWT_SECRET=dfjghslikdjghlsdkjgiklsdjghosuidgiosjriajeroiajgjhnajksheighjsbnasmakfgksknghfnmnsgmksekdskng
+      - REFRESH_SECRET=sdkfnkadjhsfnkjdsfjhkdfsjkldfskmlnmnfgbvcmhndfvlzcxlffgcxvlfkcbvkjngfnjkdsfxzcklbvckjnfghkljdfgljkd
+      - DB_CONNECTION_STRING=postgres://root:12345@db:5432/postgres?sslmode=disable
+    restart: unless-stopped
+
